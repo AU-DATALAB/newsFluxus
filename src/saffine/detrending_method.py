@@ -15,10 +15,10 @@ def detrending_method(data , seg_len , fit_order) :
     data_len = shape(data)[0]
     # calculate the coefficient,given a window size and fitting order
     coeff_output , A = dc.detrending_coeff(seg_len , fit_order)
-    coeff_output = np.float32(coeff_output)
-    A = np.float32(A)
+    coeff_output = np.float16(coeff_output)
+    A = np.float16(A)
     A_coeff = A * coeff_output
-    A_coeff = np.float32(A_coeff)
+    A_coeff = np.float16(A_coeff)
 
     for seg_index in range(1 , 2) :
         #left trend
@@ -31,7 +31,7 @@ def detrending_method(data , seg_len , fit_order) :
         seg_data = data[xi_min - 1 : xi_max , 0]
         left_trend = (A_coeff * seg_data).T
         
-        left_trend = np.float32(left_trend)
+        left_trend = np.float16(left_trend)
 
         # mid trend
 
@@ -81,7 +81,7 @@ def detrending_method(data , seg_len , fit_order) :
             nrows_seg = shape(seg_data)[0]
             mid_trend = (A_coeff * seg_data).T
             
-            mid_trend = np.float32(mid_trend)
+            mid_trend = np.float16(mid_trend)
 
             #right trend
 
@@ -97,10 +97,10 @@ def detrending_method(data , seg_len , fit_order) :
                     coeff_output1 , A1 = dc.detrending_coeff(nrows_seg , fit_order)
                     A_coeff1 = A1 * coeff_output1
                     right_trend = (A_coeff1 * seg_data).T
-                    right_trend = np.float32(right_trend)
+                    right_trend = np.float16(right_trend)
                 else :
                     right_trend = (A_coeff * seg_data).T
-                    right_trend = np.float32(right_trend)
+                    right_trend = np.float16(right_trend)
 
                 xx1 = left_trend[0 , int((seg_len + 1) / 2) - 1 : seg_len]
                 xx2 = mid_trend[0 , 0 : int((seg_len + 1) / 2)]
@@ -133,7 +133,7 @@ def detrending_method(data , seg_len , fit_order) :
                 xi_min = xi.min()
                 seg_data = data[xi_min - 1 : xi_max,0]
                 right_trend = (A * coeff_output * seg_data).T
-                right_trend = np.float32(right_trend)
+                right_trend = np.float16(right_trend)
 
                 xx1 = left_trend[0 , int((seg_len + 1) / 2) - 1 : seg_len]
                 xx2 = mid_trend[0 , 0 : int((seg_len + 1) / 2)]
@@ -161,7 +161,7 @@ def detrending_method(data , seg_len , fit_order) :
         xi_min = xi.min()
         seg_data = data[xi_min - 1 : xi_max , 0]
         left_trend = (A_coeff * seg_data).T
-        left_trend = np.float32(left_trend)
+        left_trend = np.float16(left_trend)
 
         # mid trend
 
@@ -171,7 +171,7 @@ def detrending_method(data , seg_len , fit_order) :
         xi_min = xi.min()
         seg_data = data[xi_min - 1 : xi_max , 0]
         mid_trend = (A_coeff * seg_data).T
-        mid_trend = np.float32(mid_trend)
+        mid_trend = np.float16(mid_trend)
 
         # right trend
         
@@ -181,7 +181,7 @@ def detrending_method(data , seg_len , fit_order) :
         xi_min = xi.min()
         seg_data = data[xi_min - 1 : xi_max , 0]
         right_trend = (A_coeff * seg_data).T
-        right_trend = np.float32(right_trend)
+        right_trend = np.float16(right_trend)
 
         xx1 = left_trend[0 , int((seg_len + 1) / 2) - 1 : seg_len]
         xx2 = mid_trend[0 , 0 : int((seg_len + 1) / 2)]
@@ -208,7 +208,7 @@ def detrending_method(data , seg_len , fit_order) :
         xi_min = xi.min()
         seg_data = data[xi_min - 1 : xi_max , 0]
         left_trend = (A_coeff * seg_data).T
-        left_trend = np.float32(left_trend)
+        left_trend = np.float16(left_trend)
 
         # mid trend
 
@@ -224,10 +224,10 @@ def detrending_method(data , seg_len , fit_order) :
                 coeff_output1 , A1 = dc.detrending_coeff(nrows_seg , fit_order)
                 A_coeff1 = A1 * coeff_output1
                 mid_trend = (A_coeff1 * seg_data).T
-                mid_trend = np.float32(mid_trend)
+                mid_trend = np.float16(mid_trend)
             else :
                 mid_trend = (A_coeff * seg_data).T
-                mid_trend = np.float32(mid_trend)
+                mid_trend = np.float16(mid_trend)
 
             xx1 = left_trend[0 , int((seg_len + 1) / 2) - 1 : seg_len]
             xx2  =mid_trend[0 , 0 : int((seg_len + 1) / 2)]
@@ -260,7 +260,7 @@ def detrending_method(data , seg_len , fit_order) :
             xi_min = xi.min()
             seg_data = data[xi_min - 1 : xi_max , 0]
             mid_trend = (A_coeff * seg_data).T
-            mid_trend = np.float32(mid_trend)
+            mid_trend = np.float16(mid_trend)
 
         # right trend
         xi = np.arange(seg_index * (seg_len - 1) + 1 , data_len + 1)
@@ -274,10 +274,10 @@ def detrending_method(data , seg_len , fit_order) :
             coeff_output1 , A1 = dc.detrending_coeff(nrows_seg , fit_order)
             A_coeff1 = A1 * coeff_output1
             right_trend = (A_coeff1 * seg_data).T
-            right_trend = np.float32(right_trend)
+            right_trend = np.float16(right_trend)
         else:
             right_trend = (A_coeff * seg_data).T
-            right_trend = np.float32(right_trend)
+            right_trend = np.float16(right_trend)
 
         xx1 = left_trend[0 , int((seg_len + 1) / 2) - 1 : seg_len]
         xx2  =mid_trend[0 , 0 : int((seg_len + 1) / 2)]
