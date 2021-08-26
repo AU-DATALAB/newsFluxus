@@ -246,10 +246,7 @@ def regline(x,
     plt.savefig(fname, bbox_extra_artists=(legend,), bbox_inches="tight")
     plt.close()
     del fig, frame
-    #Ida added
-    beta1 = round(p[0], 2)
-    return beta1
-
+    
 
 def regline_without_figure(x, 
                            y):
@@ -262,15 +259,13 @@ def regline_without_figure(x,
     return beta1
 
 
-def plot_figures(df, 
-                 OUT_PATH: str, 
-                 IN_DATA: str, 
-                 window: int):
+def extract_adjusted_main_parameters(df,
+                              window):
     """
     df: pandas DataFrame with ["date", "novelty", "resonance"]
-    OUT_PATH: path for where the output is saved to
-    IN_DATA: specifying the name of the output dependent on dataset name
     window: int size of sliding window
+    x: 
+    y: 
     """
     time = df['date'].tolist()
     novelty = df['novelty'].tolist()
@@ -279,23 +274,38 @@ def plot_figures(df,
     time = time[window:-window]
     novelty = novelty[window:-window]
     resonance = resonance[window:-window]
-
     # Handle and remove NaNs
     if np.argwhere(np.isnan(novelty)) == np.argwhere(np.isnan(resonance)):
         pop_id = np.argwhere(np.isnan(novelty))[0][0]
         novelty.pop(pop_id)
         resonance.pop(pop_id)
+    # classification based on z-scores
+    xz = stats.zscore(novelty)
+    yz = stats.zscore(resonance)
+    beta1 = regline_without_figure(xz,yz)
+    return time, novelty, resonance, beta1, xz, yz
 
+def plot_initial_figures(novelty: list,
+                         resonance: list,
+                         xz,
+                         yz,
+                         OUT_PATH: str,
+                         IN_DATA: str):
+    """
+    novelty: list of novelty values
+    resonance: list of resonance values
+    xz: zscore
+    yz: zscore
+    OUT_PATH: path for where the output is saved to
+    IN_DATA: specifying the name of the output dependent on dataset name
+    """
     # Trend detection
     if not os.path.exists(os.path.join(OUT_PATH, "fig")):
         os.mkdir(os.path.join(OUT_PATH, "fig"))
     figname0 = os.path.join(OUT_PATH, "fig", IN_DATA.split(".")[0] + "_adaptline.png")
+    print("[PLOT] Adaptiveline")
     adaptiveline(novelty, resonance, fname=figname0)
-    # classification based on z-scores
-    xz = stats.zscore(novelty)
-    yz = stats.zscore(resonance)
-    
     figname1 = os.path.join(OUT_PATH, "fig", IN_DATA.split(".")[0] + "_regline.png")
+    print("[PLOT] Regline")
     regline(xz, yz, fname=figname1)
-    beta1 = regline(xz, yz, fname=figname1)
-    return time, novelty, resonance, beta1
+    return 0
