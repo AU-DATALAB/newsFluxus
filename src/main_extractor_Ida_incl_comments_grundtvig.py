@@ -27,9 +27,7 @@ from itertools import islice
 import math
 from icecream import ic
 import numpy as np
-import scipy as sp
 import scipy.stats as stats
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import traceback
 
@@ -44,9 +42,9 @@ from tekisuto.models import InfoDynamics
 from tekisuto.metrics import jsd
 from tekisuto.models import LatentSemantics
 from import_ndjson_files_incl_comments import import_ndjson_files
-from visualsrc.visualsrc import regline_without_figure, adaptiveline_toptimes, plot_figures
+from visualsrc.visualsrc import regline_without_figure, adaptiveline_toptimes, extract_adjusted_main_parameters, plot_initial_figures
 
-mpl_size = 10000#0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+mpl_size = 10000
 
 #########################################################################################################
 ### PREPARE TEXTS FOR TOPIC MODELING
@@ -57,6 +55,8 @@ def downsample(df,
     """
     df: pandas DataFrame with columns "date" and "text"
     frequency: time interval for downsampling, default 1T - creates 1min timebins
+
+    Returns downsampled pandas DataFrame
     """
     df.index = pd.to_datetime(df["date"])
     df = df.drop("date", axis = 1)
@@ -74,6 +74,8 @@ def spacy_lemmatize(texts: list,
     texts: input texts as list
     nlp: specifies spacy language model
     **kwargs: other arguments to spacy NLP pipe
+
+    Returns lemmas for all documents in a list
     """
     docs = nlp.pipe(texts, **kwargs)
     
@@ -89,6 +91,8 @@ def spacy_lemmatize(texts: list,
 def make_lemmas(df):
     """
     df: pandas DataFrame with column "text"
+
+    Returns lemmas as list
     """
     df["text"] = df["text"].astype(str)
 
@@ -112,11 +116,14 @@ def preprocess_for_topic_models(lemmas: list,
     """
     lemmas: list of lemmas
     lang: string specification of language, default da (danish)
+
+    Returns lemmas as list
     """
     cf = CaseFolder(lower=True)
     re0 = RegxFilter(pattern=r"\W+")
     re1 = RegxFilter(pattern=r"\d+")
     sw = StopWordFilter(path=os.path.join(ROOT_PATH, "res", f"stopwords-{lang}.txt"))
+    
     processors = [cf, re0, re1, sw]
     for processor in processors:
         lemmas = [processor.preprocess(t) for t in lemmas]
@@ -138,6 +145,8 @@ def train_topic_model(tokens,
     tune_topic_range: number of topics to fit
     plot_topics: quality check, plot coherence by topics
     **kwargs: other arguments to LDAmulticore
+
+    Returns topic model tm and number of topics n
     """
     if estimate_topics:
         tm = TopicModel(tokens)
@@ -169,6 +178,8 @@ def train_topic_model_mallet(tokens,
     tune_topic_range: number of topics to fit
     plot_topics: quality check, plot coherence by topics
     **kwargs: other arguments to LDAmulticore
+
+    Returns topic model ls and number of topics n
     """
     
     if estimate_topics:
@@ -199,6 +210,8 @@ def extract_novelty_resonance(df,
     theta: list of theta values (list of lists)
     dates: list of dates
     window: int of the window size
+
+    Returns pandas DataFrame with novelty-resonance values
     """
     idmdl = InfoDynamics(data = theta, time = dates, window = window)
     idmdl.novelty(meas = jsd)
@@ -223,6 +236,8 @@ def hurst_exp(resonance: list,
     """
     resonance:  list of resonance values
     OUT_PATH: path for where the output is saved to
+
+    Returns hurst exponent hurst_r
     """
     nolds.hurst_rs(resonance, nvals=None, fit='poly', debug_plot=True, plot_file=None, corrected=True, unbiased=True)
     fignameH = os.path.join(OUT_PATH, "fig", "H_plot.png")
@@ -270,8 +285,7 @@ def beta_time_series(time: list,
     #convert time series into windows
     time_w = list()
     for w in sliding_window(time, window):
-        time_w.append(w)
-        #print(w)    
+        time_w.append(w)  
     novelty_w = list()
     for w in sliding_window(novelty, window):
         novelty_w.append(w)
@@ -299,6 +313,18 @@ def beta_time_series(time: list,
     for i in range(len(time_middle)):
         time_middle_days.append(time_middle[i][0:10])
     
+    #save beta timeseries
+    print("[INFO] Saving beta timeseries")
+    output = pd.DataFrame({'beta': beta_w, 'time middle': time_middle, 'time': time_w})
+    output.to_csv(os.path.join(OUT_PATH, "{}_beta_timeseries.csv".format(IN_DATA.split(".")[0])), index=False, encoding='utf-8-sig', sep=';')  
+    
+    return beta_w, time_w, time_middle, time_middle_days
+    
+def plot_beta_time_series(time_middle, 
+                          beta_w,
+                          time_middle_days,
+                          OUT_PATH,
+                          IN_DATA):
     #plot beta over time    
     #(execute as block)
     plt.scatter(time_middle, beta_w)
@@ -313,15 +339,7 @@ def beta_time_series(time: list,
     #save figure
     fname = os.path.join(OUT_PATH, "fig", IN_DATA.split(".")[0] + "_beta_timeseries.png")
     plt.savefig(fname, dpi=300, bbox_inches='tight')
-    plt.show()
-    
-    #save beta timeseries
-    print("[INFO] Saving beta timeseries")
-    output = pd.DataFrame({'beta': beta_w, 'time middle': time_middle, 'time': time_w})
-    output.to_csv(os.path.join(OUT_PATH, "{}_beta_timeseries.csv".format(IN_DATA.split(".")[0])), index=False, encoding='utf-8-sig', sep=';')  
-    
-    return beta_w, time_w, time_middle, time_middle_days
-    
+    plt.close()
 
 def timepoints_beta_top(beta_w, 
                         time_w, 
@@ -418,59 +436,11 @@ def plot_beta_top_time(time_middle,
     #save figure
     fname = os.path.join(OUT_PATH, "fig", IN_DATA.split(".")[0] + "_beta_timeseries_top.png")
     plt.savefig(fname, dpi=300, bbox_inches='tight')
+    plt.close()
 
 #########################################################################################################
-### MAIN LARGE FUNCTIONS
+### MAINTENANCE FUNCTIONS
 #########################################################################################################
-
-def main_beta_plotting_with_top_tokens(window: int, 
-                                       percentage: float, 
-                                       size_df: int, 
-                                       df, 
-                                       tokens: list, 
-                                       time: list, 
-                                       novelty: list, 
-                                       resonance: list, 
-                                       OUT_PATH: str, 
-                                       IN_DATA: str):
-    """
-    
-    """
-    #Analyse posts with top beta values
-    print("[INFO] Beta timeseries")
-    beta_w, time_w, time_middle, time_middle_days = beta_time_series(time, novelty, resonance, window, OUT_PATH, IN_DATA)
-    del time
-    #find time points according to top beta values
-    time_top, threshold, list_top_idx = timepoints_beta_top(beta_w, time_w, percentage)
-    del time_w
-    #find indices of those time points using df     NB: idx_top follows length of df
-    idx_top = list(df['date'].index[df['date'] == time_top[i]].tolist() for i in range(len(time_top)))
-    #for those really big files
-    del df
-    idx_top = list(idx_top[i][0] for i in range(len(idx_top)))
-    
-    #select the tokens
-    tokens_top = list(tokens[i] for i in idx_top)
-    #save top tokens
-    print("[INFO] Save top tokens")
-    with open(os.path.join(OUT_PATH, "mdl", "{}_toptokens.txt".format(IN_DATA.split(".")[0])), "w") as f:
-        for element in tokens_top:
-            f.write("{}\n".format(element))
-    del tokens_top
-    
-    #%%plot top time points onto other figures
-    #resonance novelty timeseries plot
-    figname = os.path.join(OUT_PATH, "fig", IN_DATA.split(".")[0] + "_adaptline_top.png")
-    x, y, cond = line_top_time(size_df, idx_top, WINDOW)
-    del idx_top
-    print("[PLOT] Adaptiveline toptimes")
-    adaptiveline_toptimes(novelty, resonance, x, y, cond, figname)
-    del novelty, resonance, x, y, cond
-    
-    print("[PLOT] Beta timeseries")
-    #beta timeseries plot
-    plot_beta_top_time(time_middle, beta_w, time_middle_days, time_top, threshold, list_top_idx, OUT_PATH, IN_DATA)
-    del beta_w, time_middle, time_middle_days, time_top, list_top_idx, threshold
 
 def exception():
     print("Exception in user code:")
@@ -500,11 +470,10 @@ def check_sufficiency_of_datapoints(df,
     OUT_PATH: str,
     IN_DATA: str
     """
-    print('not sufficient datapoints')
+    print('[INFO] Not sufficient datapoints')
     with open(os.path.join(OUT_PATH, "{}_not_executed.txt".format(IN_DATA.split(".")[0])), "w") as f:
         f.write("not sufficient datapoints (no datapoints = {})".format(size_df))
         
-    #do not execute subreddit, return zeros for indicator variables
     beta1 = 0
     hurst_r = 0
     return df, OUT_PATH, IN_DATA, beta1, hurst_r
@@ -544,9 +513,105 @@ def export_model_and_tokens(tm,
     del out, tm
 
 
+
+def load_from_premade_model(OUT_PATH, IN_DATA):
+    print("[INFO] Loading theta values...")
+    df = pd.read_csv(os.path.join(OUT_PATH, IN_DATA.split(".")[0] + "_theta.csv"))
+    df = df.dropna().drop_duplicates().reset_index(drop=True)
+    df["text"] = df["text"].astype(str)
+    df = df.sort_values("date")
+    with open(os.path.join(OUT_PATH, "mdl", "topic_dist_{}.pcl".format(IN_DATA.split(".")[0])), 'rb') as f:
+        out = pickle.load(f)
+    tokens = out["tokens"]
+    return df, tokens
+
+def load_from_premade_model_generate_thetas(OUT_PATH, IN_DATA, WINDOW, OUT_FILE):
+    print("[INFO] Generating theta values from saved tokens...")
+    with open(os.path.join(OUT_PATH, "mdl", "topic_dist_{}.pcl".format(IN_DATA.split(".")[0])), 'rb') as f:
+        out = pickle.load(f)
+    tokens = out["tokens"]
+    #tm = out["model"]
+    dates = out["dates"]
+    theta = out["theta"]
+            
+    df = pd.DataFrame()
+    df["date"] = dates
+    df["theta"] = theta
+
+    df = df.dropna().drop_duplicates().reset_index(drop=True)
+    df = df.sort_values("date")
+        
+    #print("[INFO] exporting model...")
+    #export_model_and_tokens(tm, n, tokens, theta, dates, OUT_PATH, IN_DATA)
+
+    print("[INFO] Extracting novelty and resonance...")
+    df = extract_novelty_resonance(df, theta, dates, WINDOW)
+    del theta, dates
+    size_df = len(df)
+    df.to_csv(OUT_FILE, index=False)
+    return df, tokens, size_df
+
 #########################################################################################################
-### MAIN MODULE
+### MAIN MODULES
 #########################################################################################################
+
+def main_beta_plotting_with_top_tokens(window: int, 
+                                       percentage: float, 
+                                       size_df: int, 
+                                       df, 
+                                       tokens: list, 
+                                       time: list, 
+                                       novelty: list, 
+                                       resonance: list, 
+                                       OUT_PATH: str, 
+                                       IN_DATA: str):
+    """
+    window: window size
+    percentage: percentage for calculating the top posts based on beta values
+    size_df: size of the df
+    df: pandas DataFrame
+    tokens: list of tokens
+    time: list of dates
+    novelty: list of novelty scores
+    resonance: list of resonance scores
+    OUT_PATH: path for where the output is saved to
+    IN_DATA: specifying the name of the output dependent on dataset name
+    """
+    #Analyse posts with top beta values
+    print("[INFO] Calculate beta timeseries")
+    beta_w, time_w, time_middle, time_middle_days = beta_time_series(time, novelty, resonance, window, OUT_PATH, IN_DATA) # takes time
+    #print("[PLOT] Beta time series")
+    #plot_beta_time_series(time_middle, beta_w, time_middle_days, OUT_PATH, IN_DATA)
+    del time
+    #find time points according to top beta values
+    print("[INFO] Find top timepoints with beta") # This takes a hot minute
+    time_top, threshold, list_top_idx = timepoints_beta_top(beta_w, time_w, percentage)
+    #print("[PLOT] Beta timeseries toptimes")
+    #plot_beta_top_time(time_middle, beta_w, time_middle_days, time_top, threshold, list_top_idx, OUT_PATH, IN_DATA)
+    del time_w, time_middle, beta_w, time_middle_days, threshold, list_top_idx
+    
+    #find indices of those time points using df     NB: idx_top follows length of df
+    idx_top = list(df['date'].index[df['date'] == time_top[i]].tolist() for i in range(len(time_top)))
+    del df, time_top
+    idx_top = list(idx_top[i][0] for i in range(len(idx_top)))
+    
+    #select the tokens
+    tokens_top = list(tokens[i] for i in idx_top)
+    #save top tokens
+    print("[INFO] Save top tokens")
+    with open(os.path.join(OUT_PATH, "mdl", "{}_toptokens.txt".format(IN_DATA.split(".")[0])), "w") as f:
+        for element in tokens_top:
+            f.write("{}\n".format(element))
+    del tokens_top
+    
+    #resonance novelty timeseries plot
+    #figname = os.path.join(OUT_PATH, "fig", IN_DATA.split(".")[0] + "_adaptline_top.png")
+    #x, y, cond = line_top_time(size_df, idx_top, WINDOW)
+    del idx_top
+    #print("[PLOT] Adaptiveline toptimes")
+    #adaptiveline_toptimes(novelty, resonance, x, y, cond, figname)
+    del novelty, resonance#, x, y, cond
+
 
 def main_module(if_reload: bool,
                 downsample_frequency: str,
@@ -575,62 +640,34 @@ def main_module(if_reload: bool,
     
     ### GET DATA ###
     if if_reload:
-        print("[INFO] importing previously made model")
+        print("[INFO] Importing previously made model")
         if os.path.isfile(os.path.join(OUT_PATH, IN_DATA.split(".")[0] + "_theta.csv")):
-            print("[INFO] Loading theta values...")
-            df = pd.read_csv(os.path.join(OUT_PATH, IN_DATA.split(".")[0] + "_theta.csv"))
-            df = df.dropna().drop_duplicates().reset_index(drop=True)
-            df["text"] = df["text"].astype(str)
-            df = df.sort_values("date")
-            with open(os.path.join(OUT_PATH, "mdl", "topic_dist_{}.pcl".format(IN_DATA.split(".")[0])), 'rb') as f:
-                out = pickle.load(f)
-            tokens = out["tokens"]
+            df, tokens = load_from_premade_model(OUT_PATH, IN_DATA)
         else:
-            print("[INFO] Generating theta values from saved tokens...")
-            with open(os.path.join(OUT_PATH, "mdl", "topic_dist_{}.pcl".format(IN_DATA.split(".")[0])), 'rb') as f:
-                out = pickle.load(f)
-            tokens = out["tokens"]
-            tm = out["model"]
-            dates = out["dates"]
-            theta = out["theta"]
-            
-            df = pd.DataFrame()
-            df["date"] = dates
-            df["theta"] = theta
-
-            df = df.dropna().drop_duplicates().reset_index(drop=True)
-            df = df.sort_values("date")
-    
-            #print("[INFO] exporting model...")
-            #export_model_and_tokens(tm, n, tokens, theta, dates, OUT_PATH, IN_DATA)
-
-            print("[INFO] extracting novelty and resonance...")
-            df = extract_novelty_resonance(df, theta, dates, WINDOW)
-            del theta, dates
-            size_df = len(df)
-            df.to_csv(OUT_FILE, index=False)
+            df, tokens, size_df = load_from_premade_model_generate_thetas(OUT_PATH, IN_DATA, WINDOW, OUT_FILE)
     else:
         df = import_ndjson_files(SUBREDDIT_NAME, REDDIT_DATA)
         df = df.dropna().drop_duplicates().reset_index(drop=True)
         df["text"] = df["text"].astype(str)
         df = df.sort_values("date")
         ic(len(df))
+
         if len(df) >= 10000:
             print("[INFO] Downsampling")
             df = downsample(df, downsample_frequency)
             print(df.head())
             ic(len(df))
-            TOPIC_TUNE = [80, 90, 120, 150]
+            TOPIC_TUNE = [100, 500, 1000, 1500, 3000]
 
         size_df = len(df)
-        print('length of datapoints in subreddit: ', size_df)
+        print('Length of datapoints in subreddit: ', size_df)
         if size_df < 120:
             df, OUT_PATH, IN_DATA, beta1, hurst_r = check_sufficiency_of_datapoints(df, size_df, OUT_PATH, IN_DATA)
         
-        print("\n[INFO] lemmatizing...\n")
+        print("\n[INFO] Lemmatizing...\n")
         lemmas = make_lemmas(df)
         lemmas = preprocess_for_topic_models(lemmas, lang=LANG)
-        print("\n[INFO] training model...\n")
+        print("\n[INFO] Training model...\n")
         to = Tokenizer()
         tokens = to.doctokenizer(lemmas)
         del lemmas
@@ -638,7 +675,14 @@ def main_module(if_reload: bool,
         df, tokens = remove_invalid_entries(tokens, df)
         ic(len(df))
         ic(len(tokens))
-    
+
+        # save tokens
+        out = {}
+        out["tokens"] = tokens
+        with open(os.path.join(OUT_PATH, "mdl", "tokens_{}.pcl".format(IN_DATA.split(".")[0])), "wb") as f:
+            pickle.dump(out, f, protocol=pickle.HIGHEST_PROTOCOL)
+        del out
+
         tm, n = train_topic_model(tokens,
                                 ESTIMATE_TOPIPCS,
                                 TOPIC_TUNE,
@@ -648,13 +692,13 @@ def main_module(if_reload: bool,
         if SAVE_SEMANTIC_TOPICS:
             # From bow_mdl.py
             # static semantic content for model summary
-            print("\n[INFO] writing content to file...\n")
+            print("\n[INFO] Writing content to file...\n")
             with open(os.path.join(OUT_PATH, "mdl", "{}_content.txt".format(IN_DATA.split(".")[0])), "w") as f:
                 for topic in tm.model.show_topics(num_topics=-1, num_words=10):
                     f.write("{}\n\n".format(topic))
         
         print("\n[INFO] Getting topic distribution per document...")
-        print("subreddit = ", SUBREDDIT_NAME)
+        print("Subreddit = ", SUBREDDIT_NAME)
         
         theta = tm.get_topic_distribution()
         df["theta"] = theta
@@ -673,10 +717,50 @@ def main_module(if_reload: bool,
         df = extract_novelty_resonance(df, theta, dates, WINDOW)
         del theta, dates
         df.to_csv(OUT_FILE, index=False)
+
+    if_rerun_topic_model = False
+    if if_rerun_topic_model:
+        if len(df) >= 10000:
+            print("[INFO] Downsampling")
+            df = downsample(df, downsample_frequency)
+            print(df.head())
+            ic(len(df))
+            #TOPIC_TUNE = [100, 120, 180, 220, 300]
+        tm, n = train_topic_model(tokens,
+                                ESTIMATE_TOPIPCS,
+                                TOPIC_TUNE,
+                                PLOT_TOPICS)
+        ic(tm, n)
+        
+        if SAVE_SEMANTIC_TOPICS:
+            # From bow_mdl.py
+            # static semantic content for model summary
+            print("\n[INFO] Writing content to file...\n")
+            with open(os.path.join(OUT_PATH, "mdl", "{}_content.txt".format(IN_DATA.split(".")[0])), "w") as f:
+                for topic in tm.model.show_topics(num_topics=-1, num_words=10):
+                    f.write("{}\n\n".format(topic))
+        
+        print("\n[INFO] Getting topic distribution per document...")
+        print("Subreddit = ", SUBREDDIT_NAME)
+        
+        theta = tm.get_topic_distribution()
+        df["theta"] = theta
+        dates = df["date"].tolist()
+   
+        print("[INFO] exporting model...")
+        export_model_and_tokens(tm, n, tokens, theta, dates, OUT_PATH, IN_DATA)
+
+        print("[INFO] extracting novelty and resonance...")
+        df = extract_novelty_resonance(df, theta, dates, WINDOW)
+        del theta, dates
+        df.to_csv(OUT_FILE, index=False)
     
-    print("[INFO] Plot initial figures...")
-    time, novelty, resonance, beta1 = plot_figures(df, OUT_PATH, IN_DATA, WINDOW)
+    print("[INFO] Get novelty, resonance, beta1")
+    time, novelty, resonance, beta1, xz, yz = extract_adjusted_main_parameters(df, WINDOW)
     
+    #print("[PLOT] Initial adaptiveline and regplot")
+    #plot_initial_figures(novelty, resonance, xz, yz, OUT_PATH, IN_DATA)
+
     print("[INFO] Hurst exponent")
     hurst_r = hurst_exp(resonance, OUT_PATH)
     
@@ -689,6 +773,7 @@ def main_module(if_reload: bool,
     percentage = 0.1
     size_df = len(df)
     main_beta_plotting_with_top_tokens(window, percentage, size_df, df, tokens, time, novelty, resonance, OUT_PATH, IN_DATA)
+    
     return OUT_PATH, IN_DATA, beta1, hurst_r
 
 #########################################################################################################
@@ -719,28 +804,29 @@ if __name__ == '__main__':
             continue
         if os.path.isfile(os.path.join(OUT_PATH, "{}_finished.txt".format(SUBREDDIT_NAME))): # Change this since '_finished.txt' does not exist
             ic("Already processed = True")
-            continue
+            #continue
         ic("No processing has occurred on this subreddit")
         
-        large_subreddit = ['privacytoolsIO', 'Bitcoin', 'conspiracy', 'privacy'] # 'technology'
-                #
-        if SUBREDDIT_NAME in large_subreddit:
+        large_subreddit = ['technology', 'conspiracy'] #['privacytoolsIO', 'Bitcoin', 
+                           #'privacy', 'Stellar', 'netsec']
+                           
+        if SUBREDDIT_NAME not in large_subreddit:
             continue
-        
+
         try:
             if os.path.isfile(os.path.join(OUT_PATH, "mdl", "topic_dist_{}.pcl".format(IN_DATA.split(".")[0]))):
-                if_reload = True
+                if_reload = False ## CHANGE THIS BACK TO TRUE
             else:
                 if_reload = False
-            downsample_frequency = "30T" #10T is 10 minutes
+            downsample_frequency = "60T" #10T is 10 minutes
             OUT_PATH, IN_DATA, beta1, hurst_r = main_module(if_reload, downsample_frequency, SUBREDDIT_NAME, ROOT_PATH, REDDIT_DATA)
-                        
-            #store indicator variables
+                    
             slope_all.append(beta1)
             hurst_all.append(hurst_r)
+                    
             with open(os.path.join(OUT_PATH, "{}_finished.txt".format(SUBREDDIT_NAME)), "w") as f:
                 f.write("finished successfully")
-            print("[INFO]   ---ALL DONE---   \n")
+            print("[INFO] PIPELINE PER FILE FINISHED\n")
         except Exception:
             exception()
             continue
