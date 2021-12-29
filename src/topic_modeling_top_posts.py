@@ -57,9 +57,9 @@ def main_module(SUBREDDIT_NAME, ROOT_PATH):
     PLOT_TOPICS = True # plot a topic of coherence by number of topics
     
     large_subreddit = ['technology', 'conspiracy', 'privacytoolsIO', 'Bitcoin', 'privacy', 'Stellar', 'netsec']
-    if SUBREDDIT_NAME in large_subreddit:
-        print("[INFO] SUBREDDIT is a large subreddit, using higher number of topic tune range")
-        TOPIC_TUNE = [100, 500, 1000, 1500, 3000]
+    #if SUBREDDIT_NAME in large_subreddit:
+    #    print("[INFO] SUBREDDIT is a large subreddit, using higher number of topic tune range")
+    #    TOPIC_TUNE = [100, 500, 1000]#, 1500]#, 3000]
 
     print("[INFO] Load top tokens")
     with open(os.path.join(OUT_PATH, "mdl", "{}_toptokens.txt".format(IN_DATA.split(".")[0]))) as f:
@@ -123,9 +123,9 @@ if __name__ == '__main__':
             ic("Already processed = True")
         #    continue
         ic("No processing has occurred on this subreddit")
-        testem = ['Bitcoin'] #['conspiracy']# 'privacy', 'privacytoolsIO','privacy','netsec','Stellar','Bitcoin','technology']
+        selected_subreddit = ["conspiracy"] #["technology"] #['Bitcoin', 'netsec', 'privacy', 'privacytoolsIO', 'Stellar']# 'privacy', 'privacytoolsIO','privacy','netsec','Stellar','Bitcoin','technology']
 
-        if SUBREDDIT_NAME in testem:
+        if SUBREDDIT_NAME in selected_subreddit:
             try:   
                 if os.path.isfile(os.path.join(OUT_PATH, "mdl", "topic_dist_{}.pcl".format(IN_DATA.split(".")[0]))) & os.path.isfile(os.path.join(OUT_PATH, IN_DATA.split(".")[0] + "_theta.csv")):
                     ic(SUBREDDIT_NAME)
