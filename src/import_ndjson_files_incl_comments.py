@@ -27,9 +27,9 @@ def import_ndjson_files(SUBREDDIT_NAME, REDDIT_DATA):
     try:
         os.mkdir(temp_path)
     except OSError:
-        print ("Creation of the directory %s failed" % temp_path)
+        ic("Creation of the directory %s failed" % temp_path)
     else:
-        print ("Successfully created the directory %s " % temp_path)
+        ic("Successfully created the directory %s " % temp_path)
     
 
 
@@ -40,7 +40,7 @@ def import_ndjson_files(SUBREDDIT_NAME, REDDIT_DATA):
     reddit_path = reddit_path[0]
     
     file = os.path.join(reddit_path, 'submissions', (SUBREDDIT_NAME + '.ndjson'))
-    print(file)
+    ic(file)
     #with open(file, encoding="utf8") as f:
     #    submissions = ndjson.load(f)
     
@@ -53,7 +53,6 @@ def import_ndjson_files(SUBREDDIT_NAME, REDDIT_DATA):
     #column 1: title
     
     list_title = list(submissions[i]['title'] for i in range(len(submissions)))# if ("selftext" in submissions[i]))
-    ic(len(list_title))
     
     #add body beneath title (account for that some have missing key 'selftext')
     list_body = []
@@ -62,7 +61,6 @@ def import_ndjson_files(SUBREDDIT_NAME, REDDIT_DATA):
             list_body.append(submissions[i]['selftext'])
         else:
             list_body.append('')
-    ic(len(list_body))
   
     #Add list_body strings behind list_title strings, after a space
     list_text = list(list_title[i] + ' ' + list_body[i] for i in range(len(submissions)))#len of submissions
@@ -78,7 +76,6 @@ def import_ndjson_files(SUBREDDIT_NAME, REDDIT_DATA):
         list_date.append(dtobj)
         
     del submissions
-    ic(len(list_date))
     
     #Put into dataframe
     df_subreddit = pd.DataFrame(
@@ -87,7 +84,6 @@ def import_ndjson_files(SUBREDDIT_NAME, REDDIT_DATA):
          })
     del list_text, list_date
 
-    ic(len(df_subreddit))
     #Export to csv file
     temp_file = temp_path + SUBREDDIT_NAME + ".csv"
     df_subreddit.to_csv(temp_file, index=False, encoding='utf-8-sig', sep=';')
@@ -96,7 +92,7 @@ def import_ndjson_files(SUBREDDIT_NAME, REDDIT_DATA):
 ###################################################################################################
 #%% Second: add comments to csv file
     file = os.path.join(reddit_path, 'comments', (SUBREDDIT_NAME + '.ndjson'))
-    print(file)
+    ic(file)
     #fname = file.split("\\")
     #fname = fname[-1].split(".")[0]
     with open(file, encoding="utf8") as f:
@@ -105,7 +101,7 @@ def import_ndjson_files(SUBREDDIT_NAME, REDDIT_DATA):
     #Structure: dataframe with two columns
     #column 1: title
     list_text_comments = list(comments[i]['body'] for i in range(len(comments)))
-    ic(len(list_text_comments))
+    
     
     #column 2: date - convert unix timestamp to format “2020-03-31T10:01:50+02:00”
     list_date_comments = []
@@ -116,7 +112,6 @@ def import_ndjson_files(SUBREDDIT_NAME, REDDIT_DATA):
         list_date_comments.append(dtobj)    
     
     del comments
-    ic(len(list_date_comments))
     
     #Put into dataframe
     df_subreddit_comments = pd.DataFrame(
